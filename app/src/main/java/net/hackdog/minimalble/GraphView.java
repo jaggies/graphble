@@ -61,7 +61,7 @@ public class GraphView extends LinearLayout {
 
         @Override
         public void onSurfaceCreated(GL10 gl10, javax.microedition.khronos.egl.EGLConfig eglConfig) {
-            mGrid = new Grid(10, 10);
+
         }
 
         @Override
@@ -73,8 +73,11 @@ public class GraphView extends LinearLayout {
 
         @Override
         public void onDrawFrame(GL10 unused) {
-            GLES30.glClearColor(0.5f, 0.5f, 0.5f, 0.0f);
+            GLES30.glClearColor(0.75f, 0.75f, 0.75f, 0.0f);
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
+            if (mGrid == null) {
+                mGrid = new Grid(10, 10);
+            }
             mGrid.draw();
         }
     }
@@ -155,7 +158,7 @@ public class GraphView extends LinearLayout {
             // get handle to fragment shader's vColor member
             mColorHandle = GLES30.glGetUniformLocation(mProgram, "vColor");
             GLES30.glUniform4fv(mColorHandle, 1, color, 0); // Set color for drawing the triangle
-            GLES30.glDrawArrays(GLES30.GL_LINES, 0, coords.length);
+            GLES30.glDrawArrays(GLES30.GL_LINES, 0, coords.length/COORDS_PER_VERTEX);
             GLES30.glDisableVertexAttribArray(mPositionHandle); // Disable vertex array
         }
 
