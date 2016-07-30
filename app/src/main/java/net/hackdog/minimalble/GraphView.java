@@ -10,6 +10,7 @@ import android.opengl.GLSurfaceView;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import android.renderscript.Matrix4f;
 import android.util.AttributeSet;
 import android.view.SurfaceHolder;
 import android.widget.LinearLayout;
@@ -99,17 +100,17 @@ public class GraphView extends LinearLayout {
         private static final int COORDS_PER_VERTEX = 3;
         private final String vertexShaderCode =
             "attribute vec4 vPosition;" +
-                "void main() {" +
-                "  gl_Position = vec4(2.0f,2.0f,2.0f,1.0f) " +
-                    "   * (vPosition - vec4(0.5,0.5,0.0,0.0));" +
-                "}";
+            "uniform mat4 matrix;" +
+            "void main() {" +
+                "gl_Position = matrix * vPosition;" +
+            "}";
 
         private final String fragmentShaderCode =
             "precision mediump float;" +
-                "uniform vec4 vColor;" +
-                "void main() {" +
-                "  gl_FragColor = vColor;" +
-                "}";
+            "uniform vec4 vColor;" +
+            "void main() {" +
+            "  gl_FragColor = vColor;" +
+            "}";
         private FloatBuffer vertexBuffer;
         private float coords[];
         private int shader;
@@ -119,6 +120,7 @@ public class GraphView extends LinearLayout {
 
         // Set color with red, green, blue and alpha (opacity) values
         float color[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        Matrix4f matrix4f = new Matrix4f();
 
         public Grid(int rows, int cols) {
             int vertexShader = GraphView.loadShader(GLES30.GL_VERTEX_SHADER, vertexShaderCode);
@@ -130,12 +132,15 @@ public class GraphView extends LinearLayout {
             GLES30.glLinkProgram(mProgram); // creates OpenGL ES program executables
 
             // initialize vertex byte buffer for shape coordinates
-            coords = createGrid(rows, cols);
+            coords = createGrid(rows+1, cols+1);
             ByteBuffer bb = ByteBuffer.allocateDirect(coords.length * 4 /* sizeof(float) */);
             bb.order(ByteOrder.nativeOrder()); // use native hardware byte order
             vertexBuffer = bb.asFloatBuffer(); // floating point buffer from the ByteBuffer
             vertexBuffer.put(coords); // add the coordinates to the FloatBuffer
             vertexBuffer.position(0); // set the buffer to read the first coordinate
+
+            // Set Viewport from 0 to 1 in x & y directions
+            matrix4f.loadOrtho(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
         }
 
         public void draw() {
@@ -152,12 +157,15 @@ public class GraphView extends LinearLayout {
             final int vertexStride = COORDS_PER_VERTEX * 4 /* sizeof(float) */;
 
             GLES30.glVertexAttribPointer(mPositionHandle, COORDS_PER_VERTEX,
-                    GLES30.GL_FLOAT, false,
-                    vertexStride, vertexBuffer);
+                    GLES30.GL_FLOAT, false, vertexStride, vertexBuffer);
 
+            int mtrxhandle = GLES30.glGetUniformLocation(mProgram, "matrix");
+
+            // Apply the projection and view transformation
             // get handle to fragment shader's vColor member
             mColorHandle = GLES30.glGetUniformLocation(mProgram, "vColor");
-            GLES30.glUniform4fv(mColorHandle, 1, color, 0); // Set color for drawing the triangle
+            GLES30.glUniform4fv(mColorHandle, 1, color, 0); // Set color
+            GLES30.glUniformMatrix4fv(mtrxhandle, 1, false, matrix4f.getArray(), 0);
             GLES30.glDrawArrays(GLES30.GL_LINES, 0, coords.length/COORDS_PER_VERTEX);
             GLES30.glDisableVertexAttribArray(mPositionHandle); // Disable vertex array
         }
