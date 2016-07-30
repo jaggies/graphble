@@ -1,11 +1,14 @@
 package net.hackdog.minimalble;
 
 import android.opengl.GLES30;
+import android.renderscript.Matrix4f;
 
 /**
  * Created by jmiller on 7/30/16.
  */
 public abstract class Primitive {
+    public static final int COORDS_PER_VERTEX = 3;
+
     private final String defaultVertexShader =
             "attribute vec4 vPosition;" +
                     "uniform mat4 matrix;" +
@@ -20,19 +23,18 @@ public abstract class Primitive {
                     "  gl_FragColor = vColor;" +
                     "}";
     private int mProgram;
+    private int mPositionHandle;
+    private int mColorHandle;
+    private int mMatrixHandle;
 
-    public abstract void draw();
+    public abstract void onDraw();
     public abstract float[] getColor();
 
     Primitive() {
-        int vertexShader = loadVertexShader();
-        int fragmentShader = loadFragmentShader();
-
         mProgram = GLES30.glCreateProgram(); // create empty OpenGL ES Program
-        GLES30.glAttachShader(mProgram, vertexShader); // add the vertex shader to program
-        GLES30.glAttachShader(mProgram, fragmentShader); // add the fragment shader to program
+        GLES30.glAttachShader(mProgram, loadVertexShader()); // add the vertex shader to program
+        GLES30.glAttachShader(mProgram, loadFragmentShader()); // add the fragment shader to program
         GLES30.glLinkProgram(mProgram); // creates OpenGL ES program executables
-
     }
 
     public String getVertexShader() {
@@ -51,6 +53,32 @@ public abstract class Primitive {
         return loadShader(GLES30.GL_FRAGMENT_SHADER, getFragmentShader());
     }
 
+    public void draw() {
+        // Setup
+        GLES30.glUseProgram(mProgram); // Add program to OpenGL ES environment
+        mPositionHandle = GLES30.glGetAttribLocation(mProgram, "vPosition");
+        mMatrixHandle = GLES30.glGetUniformLocation(mProgram, "matrix");
+        mColorHandle = GLES30.glGetUniformLocation(mProgram, "vColor");
+        GLES30.glEnableVertexAttribArray(mPositionHandle);
+
+        // Client draw
+        onDraw();
+
+        // Cleanup
+        GLES30.glDisableVertexAttribArray(mPositionHandle); // Disable vertex array
+    }
+
+    public int getPositionHandle() {
+        return mPositionHandle;
+    }
+
+    public int getColorHandle() {
+        return mColorHandle;
+    }
+
+    public int getMatrixHandle() {
+        return mMatrixHandle;
+    }
     public static int loadShader(int type, String shaderCode){
 
         // create a vertex shader type (GLES20.GL_VERTEX_SHADER)
