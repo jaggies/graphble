@@ -17,11 +17,18 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS = 100;
     private static final String TAG = MainActivity.class.getSimpleName();
+    final int CHANNEL_IDS[] = {R.id.channel0, R.id.channel1, R.id.channel2, R.id.channel3 };
+    private GraphView mChannels[] = new GraphView[CHANNEL_IDS.length];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        for (int i = 0; i < CHANNEL_IDS.length; i++) {
+            mChannels[i] = (GraphView) findViewById(CHANNEL_IDS[i]);
+            mChannels[i].setLabel("Channel " + i);
+            mChannels[i].setValue("off");
+        }
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
