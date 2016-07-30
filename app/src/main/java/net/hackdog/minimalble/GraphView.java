@@ -77,7 +77,8 @@ public class GraphView extends LinearLayout {
             GLES30.glClearColor(0.75f, 0.75f, 0.75f, 0.0f);
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
             if (mGrid == null) {
-                mGrid = new Grid(10, 10);
+                mGrid = new Grid();
+                mGrid.setViewPort(new Grid.ViewPort(0.0f, (float) mWidth/mHeight, 0.0f, 1.0f, 0.0f, 1.0f));
             }
             mGrid.draw();
         }
