@@ -11,6 +11,7 @@ import java.nio.FloatBuffer;
  * Created by jmiller on 7/30/16.
  */
 public class Grid extends Primitive {
+    private static final int MAX_GRIDLINES = 100;
     private FloatBuffer mVertexBuffer;
     private int mArrayCount;
     private GridSpacing mGridSpacing = new GridSpacing(0.1f, 0.1f);
@@ -64,7 +65,9 @@ public class Grid extends Primitive {
     private void recompute() {
         int cols = (int) Math.ceil( (mViewPort.right - mViewPort.left) / mGridSpacing.dx );
         int rows = (int) Math.ceil( (mViewPort.top - mViewPort.bottom) / mGridSpacing.dy );
-        float[] coords = createGrid(rows, cols, mGridSpacing.dx, mGridSpacing.dy);
+        if (cols > MAX_GRIDLINES) cols = 0; // grid is too dense; don't draw it
+        if (rows > MAX_GRIDLINES) rows = 0;
+        final float[] coords = createGrid(rows, cols, mGridSpacing.dx, mGridSpacing.dy);
         mArrayCount = coords.length/COORDS_PER_VERTEX;
 
         ByteBuffer bb = ByteBuffer.allocateDirect(coords.length * 4 /* sizeof(float) */);
