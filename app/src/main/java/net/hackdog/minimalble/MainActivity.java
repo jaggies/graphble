@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_PERMISSIONS = 100;
     private static final int REQUEST_ENABLE_BT = 101;
     private final UUID CLIENT_CHAR_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+    private final UUID CLIENT_USER_DESC = UUID.fromString("00002901-0000-1000-8000-00805f9b34fb");
     private static final String TAG = MainActivity.class.getSimpleName();
     final int CHANNEL_IDS[] = {R.id.channel0, R.id.channel1, R.id.channel2, R.id.channel3 };
     private GraphView mChannels[] = new GraphView[CHANNEL_IDS.length];
@@ -249,7 +250,8 @@ public class MainActivity extends AppCompatActivity {
                         chrs.add(chr);
                         Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
                                 + " writetype:" + chr.getWriteType()
-                                + " properties:" + Integer.toHexString(chr.getProperties()));
+                                + " properties:" + Integer.toHexString(chr.getProperties())
+                                + " userDesc:" + chr.getDescriptor(CLIENT_USER_DESC)); // TODO
                     }
                 }
             }
@@ -271,9 +273,13 @@ public class MainActivity extends AppCompatActivity {
                 // See https://code.google.com/p/android/issues/detail?id=150933
                 //chr.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
 
-                desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                desc.setValue(enable ?
+                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
                 if (!gatt.writeDescriptor(desc)) {
                     // Assume descriptor is busy and do it later.
+                    Log.v(TAG, "delay write GATT descriptor for + "
+                            + desc.getCharacteristic().getUuid());
                     synchronized (workQueue) {
                         workQueue.add(new Runnable() {
                             @Override
@@ -285,6 +291,8 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                     }
+                } else {
+                    Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
                 }
             } else {
                 Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
