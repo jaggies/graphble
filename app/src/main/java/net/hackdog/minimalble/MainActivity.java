@@ -129,6 +129,15 @@ public class MainActivity extends AppCompatActivity {
         startService();
     }
 
+    protected void onStop() {
+        super.onStop();
+        if (!isChangingConfigurations()) {
+            // Don't leave the service running
+//            stopService(SERVICE_INTENT);
+            finish();
+        }
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
