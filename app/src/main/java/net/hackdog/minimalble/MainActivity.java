@@ -18,16 +18,26 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
-
+    public static final boolean DEBUG = false;
     private static final int REQUEST_PERMISSIONS = 100;
     private static final int REQUEST_ENABLE_BT = 101;
     private static final String TAG = MainActivity.class.getSimpleName();
     final int CHANNEL_IDS[] = {R.id.channel0, R.id.channel1, R.id.channel2, R.id.channel3 };
+    final static HashMap<String, Integer> mChannelMap;
     private GraphView mChannels[] = new GraphView[CHANNEL_IDS.length];
     BleService mService;
+
+    static {
+        mChannelMap = new HashMap<>();
+        mChannelMap.put("6ff90100-b2be-4f02-bbd8-e795ca3ca70c", 0);
+        mChannelMap.put("6ff90101-b2be-4f02-bbd8-e795ca3ca70c", 1);
+        mChannelMap.put("6ff90102-b2be-4f02-bbd8-e795ca3ca70c", 2);
+        mChannelMap.put("6ff90103-b2be-4f02-bbd8-e795ca3ca70c", 3);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void startService() {
-        Log.v(TAG, "Starting service");
+        if (DEBUG) Log.v(TAG, "Starting service");
         Intent intent = new Intent(this, BleService.class);
         if (!bindService(intent, mConnection, Context.BIND_AUTO_CREATE)) {
             Log.w(TAG, "Failed to start service");
@@ -70,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
-            Log.v(TAG, "Service connected, yay!");
+            if (DEBUG) Log.v(TAG, "Service connected, yay!");
             BleService.LocalBinder binder = (BleService.LocalBinder) service;
             mService = binder.getService();
             mService.registerCallback(mBleServiceCallback);
@@ -79,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
-            Log.v(TAG, "Service disconnected, boo!");
+            if (DEBUG) Log.v(TAG, "Service disconnected, boo!");
             mService = null;
         }
     };
@@ -132,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
                 if (grantResults.length > 0) {
                     for (int i = 0; i < grantResults.length; i++) {
                         boolean isGranted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
-                        Log.v(TAG, "Permission " + (isGranted ? "granted" : "denied")
+                        if (DEBUG) Log.v(TAG, "Permission " + (isGranted ? "granted" : "denied")
                                 + permissions[i]);
                         if (!isGranted) granted = false;
                     }
@@ -160,7 +170,14 @@ public class MainActivity extends AppCompatActivity {
     BleServiceCallback mBleServiceCallback = new BleServiceCallback() {
         @Override
         public void onCharacteristicChanged(UUID uuid, byte[] data) {
-            mChannels[0].setData(data);
+            String sUuid = uuid.toString();
+            if (mChannelMap.containsKey(sUuid)) {
+                int chan = mChannelMap.get(sUuid);
+                mChannels[0].setData(data);
+            } else {
+                // probably settings
+                Log.w(TAG, "not handling uuid " + uuid.toString());
+            }
         }
 
         @Override
