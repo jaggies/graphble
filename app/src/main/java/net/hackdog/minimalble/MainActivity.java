@@ -31,6 +31,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
@@ -314,7 +315,15 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicChanged(gatt, characteristic);
-            Log.v(TAG, "onCharacteristicChanged(): " + characteristic.getValue().toString());
+            //Log.v(TAG, "onCharacteristicChanged(): " + characteristic.getValue().toString());
+            byte[] data = characteristic.getValue();
+            final byte samples[] = Arrays.copyOf(data, data.length);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mChannels[0].setData(samples);
+                }
+            });
         }
 
         @Override

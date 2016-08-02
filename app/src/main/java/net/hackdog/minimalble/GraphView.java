@@ -27,6 +27,7 @@ public class GraphView extends LinearLayout {
     private GLSurfaceView mGraphView;
     private TextView mChannelLabel;
     private TextView mChannelValue;
+    private GraphRenderer mRenderer;
 
     public GraphView(Context context) {
         super(context);
@@ -44,7 +45,9 @@ public class GraphView extends LinearLayout {
         mChannelLabel = (TextView) findViewById(R.id.label);
         mChannelValue = (TextView) findViewById(R.id.value);
         mGraphView.setEGLContextClientVersion(3);
-        mGraphView.setRenderer(new GraphRenderer());
+        //mGraphView.setEGLConfigChooser(new MultisampleConfigChooser());
+        mRenderer = new GraphRenderer();
+        mGraphView.setRenderer(mRenderer);
     }
 
     public void setLabel(CharSequence label) {
@@ -55,10 +58,13 @@ public class GraphView extends LinearLayout {
         mChannelValue.setText(value);
     }
 
-    static class GraphRenderer implements GLSurfaceView.Renderer {
+    public void setData(byte[] data) { mRenderer.setData(data); }
+
+    class GraphRenderer implements GLSurfaceView.Renderer {
         private int mWidth;
         private int mHeight;
         Grid mGrid;
+        Lines mLines;
 
         @Override
         public void onSurfaceCreated(GL10 gl10, javax.microedition.khronos.egl.EGLConfig eglConfig) {
@@ -74,13 +80,26 @@ public class GraphView extends LinearLayout {
 
         @Override
         public void onDrawFrame(GL10 unused) {
-            GLES30.glClearColor(0.75f, 0.75f, 0.75f, 0.0f);
+            GLES30.glClearColor(0.9f, 0.9f, 0.9f, 0.0f);
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
             if (mGrid == null) {
                 mGrid = new Grid();
-                mGrid.setViewPort(new Grid.ViewPort(0.0f, (float) mWidth/mHeight, 0.0f, 1.0f, 0.0f, 1.0f));
+                mGrid.setViewPort(
+                        new Grid.ViewPort(0.0f, 2.0f * mWidth/mHeight, -1.0f, 1.0f, 0.0f, 1.0f));
+            }
+            if (mLines == null) {
+                mLines = new Lines();
+                mLines.setViewPort(
+                        new Lines.ViewPort(0.0f, 2.0f * mWidth/mHeight, -1.0f, 1.0f, 0.0f, 1.0f));
             }
             mGrid.draw();
+            mLines.draw();
+        }
+
+        public void setData(byte[] data) {
+            if (mLines != null) { // TODO: allow data to be set before first render
+                mLines.setData(data);
+            }
         }
     }
 }

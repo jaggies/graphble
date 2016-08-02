@@ -17,7 +17,7 @@ public class Grid extends Primitive {
     private GridSpacing mGridSpacing = new GridSpacing(0.1f, 0.1f);
     private ViewPort mViewPort = new ViewPort(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     private boolean configChanged = true;
-    final float color[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    final float color[] = { 0.75f, 0.75f, 0.75f, 1.0f };
     private Matrix4f matrix4f = new Matrix4f();
 
     public static class GridSpacing {
@@ -67,7 +67,8 @@ public class Grid extends Primitive {
         int rows = (int) Math.ceil( (mViewPort.top - mViewPort.bottom) / mGridSpacing.dy );
         if (cols > MAX_GRIDLINES) cols = 0; // grid is too dense; don't draw it
         if (rows > MAX_GRIDLINES) rows = 0;
-        final float[] coords = createGrid(rows, cols, mGridSpacing.dx, mGridSpacing.dy);
+        final float[] coords = createGrid(rows, cols, mViewPort.left, mViewPort.bottom,
+                mGridSpacing.dx, mGridSpacing.dy);
         mArrayCount = coords.length/COORDS_PER_VERTEX;
 
         ByteBuffer bb = ByteBuffer.allocateDirect(coords.length * 4 /* sizeof(float) */);
@@ -93,29 +94,30 @@ public class Grid extends Primitive {
         GLES30.glDrawArrays(GLES30.GL_LINES, 0, mArrayCount);
     }
 
-    private static final float[] createGrid(int rows, int cols, float dx, float dy) {
+    private static final float[] createGrid(int rows, int cols, float left, float bottom,
+                                            float dx, float dy) {
         float result[] = new float[2 * COORDS_PER_VERTEX * (rows + cols)];
         int idx = 0;
         // horizontal lines
         for (int row = 0; row < rows; row++) {
-            float y = row * dy;
-            result[idx++] = 0.0f;
+            float y = bottom + row * dy;
+            result[idx++] = left;
             result[idx++] = y;
             result[idx++] = 0.0f;
 
-            result[idx++] = cols*dx;
+            result[idx++] = left + cols*dx;
             result[idx++] = y;
             result[idx++] = 0.0f;
         }
         // vertical lines
         for (int col = 0; col < cols; col++) {
-            float x = col * dx;
+            float x = left + col * dx;
             result[idx++] = x;
-            result[idx++] = 0.0f;
+            result[idx++] = bottom;
             result[idx++] = 0.0f;
 
             result[idx++] = x;
-            result[idx++] = rows*dy;
+            result[idx++] = bottom + rows*dy;
             result[idx++] = 0.0f;
         }
         return result;
