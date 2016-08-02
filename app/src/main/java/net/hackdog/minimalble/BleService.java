@@ -35,7 +35,9 @@ public class BleService extends Service {
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGatt mBluetoothGatt;
     private BleServiceCallback mBleServiceCallback;
-    LocalBinder mBinder = new LocalBinder();
+    private LocalBinder mBinder = new LocalBinder();
+    private static final boolean DEBUG = MainActivity.DEBUG;
+
 
     public class LocalBinder extends Binder {
         BleService getService() {
@@ -46,7 +48,7 @@ public class BleService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.v(TAG, "Service started!");
+        if (DEBUG) Log.v(TAG, "Service started!");
     }
 
     @Override
@@ -103,7 +105,7 @@ public class BleService extends Service {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
-            Log.v(TAG, "onScanResult(type=" + callbackType + ", result=" + result);
+            if (DEBUG) Log.v(TAG, "onScanResult(type=" + callbackType + ", result=" + result);
             switch (callbackType) {
                 case ScanSettings.CALLBACK_TYPE_ALL_MATCHES:
                 case ScanSettings.CALLBACK_TYPE_FIRST_MATCH:
@@ -112,7 +114,7 @@ public class BleService extends Service {
                     int rssi = result.getRssi();
                     List<ParcelUuid> serviceUuids = result.getScanRecord().getServiceUuids();
                     String name = result.getScanRecord().getDeviceName();
-                    Log.v(TAG, "Found " + name + ", rssi=" + rssi);
+                    if (DEBUG) Log.v(TAG, "Found " + name + ", rssi=" + rssi);
                     mBluetoothGatt = device.connectGatt(BleService.this, true, mGattCallback);
                 }
                 break;
@@ -122,13 +124,13 @@ public class BleService extends Service {
         @Override
         public void onBatchScanResults(List<ScanResult> results) {
             super.onBatchScanResults(results);
-            Log.v(TAG, "onBatchScanResults(res=" + results + ")");
+            if (DEBUG) Log.v(TAG, "onBatchScanResults(res=" + results + ")");
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
-            Log.v(TAG, "onScanFailed: " + errorCode);
+            if (DEBUG) Log.v(TAG, "onScanFailed: " + errorCode);
         }
     };
 
@@ -153,14 +155,14 @@ public class BleService extends Service {
             super.onServicesDiscovered(gatt, status);
             List<BluetoothGattCharacteristic> chrs = new ArrayList<>();
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.v(TAG, "onServicesDiscovered(status=" + status + ")");
+                if (DEBUG) Log.v(TAG, "onServicesDiscovered(status=" + status + ")");
                 List<BluetoothGattService> services = gatt.getServices();
                 for (BluetoothGattService service : services) {
-                    Log.v(TAG, "\tService:" + service.getUuid());
+                    if (DEBUG) Log.v(TAG, "\tService:" + service.getUuid());
                     List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
                     for (BluetoothGattCharacteristic chr : chars) {
                         chrs.add(chr);
-                        Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
+                        if (DEBUG) Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
                                 + " writetype:" + chr.getWriteType()
                                 + " properties:" + Integer.toHexString(chr.getProperties())
                                 + " userDesc:" + chr.getDescriptor(CLIENT_USER_DESC)); // TODO
@@ -190,24 +192,24 @@ public class BleService extends Service {
                         : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
                 if (!gatt.writeDescriptor(desc)) {
                     // Assume descriptor is busy and do it later.
-                    Log.v(TAG, "delay write GATT descriptor for + "
+                    if (DEBUG) Log.v(TAG, "delay write GATT descriptor for + "
                             + desc.getCharacteristic().getUuid());
                     synchronized (workQueue) {
                         workQueue.add(new Runnable() {
                             @Override
                             public void run() {
                                 if (!gatt.writeDescriptor(desc)) {
-                                    Log.v(TAG, "Couldn't write desc for chr "
+                                    if (DEBUG) Log.v(TAG, "Couldn't write desc for chr "
                                             + desc.getCharacteristic().getUuid());
                                 }
                             }
                         });
                     }
                 } else {
-                    Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
+                    if (DEBUG) Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
                 }
             } else {
-                Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
+                if (DEBUG) Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
             }
         }
 
@@ -237,13 +239,13 @@ public class BleService extends Service {
         @Override
         public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             super.onDescriptorRead(gatt, descriptor, status);
-            Log.v(TAG, "onDescriptorRead() : " + descriptor.getCharacteristic().getUuid());
+            if (DEBUG) Log.v(TAG, "onDescriptorRead() : " + descriptor.getCharacteristic().getUuid());
         }
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             super.onDescriptorWrite(gatt, descriptor, status);
-            Log.v(TAG, "onDescriptorWrite " + descriptor.getCharacteristic().getUuid()
+            if (DEBUG) Log.v(TAG, "onDescriptorWrite " + descriptor.getCharacteristic().getUuid()
                     + " status:" + status);
             synchronized (workQueue) {
                 if (workQueue.size() > 0) {
@@ -262,7 +264,7 @@ public class BleService extends Service {
         @Override
         public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
             super.onReadRemoteRssi(gatt, rssi, status);
-            Log.v(TAG, "onReadRemoteRssi(rssi=" + rssi + ", status=" + status);
+            if (DEBUG) Log.v(TAG, "onReadRemoteRssi(rssi=" + rssi + ", status=" + status);
         }
 
         @Override
