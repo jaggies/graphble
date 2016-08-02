@@ -88,17 +88,18 @@ public class BleService extends Service {
                         .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
                         .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                         .build();
-                mIsScanning = true;
-                mBluetoothAdapter.getBluetoothLeScanner().startScan(filts, setings, mScanCallback);
+                doScan(filts, setings);
             }
         }
     }
 
+    private void doScan(List<ScanFilter> filts, ScanSettings setings) {
+        updateConnectionState(BleServiceCallback.STATE_SCANNING);
+        mBluetoothAdapter.getBluetoothLeScanner().startScan(filts, setings, mScanCallback);
+    }
+
     public void stopScan() {
-        if (mBluetoothAdapter != null) {
-            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
-        }
-        mIsScanning = false;
+        updateConnectionState(BleServiceCallback.STATE_SCAN_FAILED);
     }
 
     ScanCallback mScanCallback = new ScanCallback() {
@@ -110,11 +111,15 @@ public class BleService extends Service {
                 case ScanSettings.CALLBACK_TYPE_ALL_MATCHES:
                 case ScanSettings.CALLBACK_TYPE_FIRST_MATCH:
                 case ScanSettings.CALLBACK_TYPE_MATCH_LOST: {
+                    updateConnectionState(BleServiceCallback.STATE_SCAN_COMPLETE);
                     BluetoothDevice device = result.getDevice();
                     int rssi = result.getRssi();
                     List<ParcelUuid> serviceUuids = result.getScanRecord().getServiceUuids();
+
                     String name = result.getScanRecord().getDeviceName();
                     if (DEBUG) Log.v(TAG, "Found " + name + ", rssi=" + rssi);
+
+                    updateConnectionState(BleServiceCallback.STATE_CONNECTING);
                     device.connectGatt(BleService.this, true, mGattCallback);
                 }
                 break;
@@ -125,16 +130,40 @@ public class BleService extends Service {
         public void onBatchScanResults(List<ScanResult> results) {
             super.onBatchScanResults(results);
             if (DEBUG) Log.v(TAG, "onBatchScanResults(res=" + results + ")");
-            mIsScanning = false;
+            updateConnectionState(BleServiceCallback.STATE_SCAN_COMPLETE);
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
             if (DEBUG) Log.v(TAG, "onScanFailed: " + errorCode);
-            mIsScanning = false;
+            updateConnectionState(BleServiceCallback.STATE_SCAN_FAILED);
         }
     };
+
+    private void updateConnectionState(int state) {
+        switch (state) {
+            case BleServiceCallback.STATE_SCANNING:
+                mIsScanning = true;
+                break;
+            case BleServiceCallback.STATE_SCAN_COMPLETE:
+            case BleServiceCallback.STATE_SCAN_FAILED:
+                mIsScanning = false;
+                break;
+            case BleServiceCallback.STATE_CONNECTING:
+                mIsConnected = false;
+                break;
+            case BleServiceCallback.STATE_CONNECTED:
+                mIsConnected = true;
+                break;
+            case BleServiceCallback.STATE_DISCONNECTED:
+                mIsConnected = false;
+                break;
+        }
+        if (mBleServiceCallback != null) {
+            mBleServiceCallback.onConnectionStateChanged(state);
+        }
+    }
 
     List<Runnable> workQueue = new ArrayList<>();
 
@@ -166,7 +195,8 @@ public class BleService extends Service {
                     });
                 }
             } else {
-                if (DEBUG) Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
+                if (DEBUG) Log.v(TAG, "wrote GATT descriptor for + "
+                        + desc.getCharacteristic().getUuid());
             }
         } else {
             if (DEBUG) Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
@@ -189,13 +219,13 @@ public class BleService extends Service {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                mIsConnected = true;
+                updateConnectionState(BleServiceCallback.STATE_CONNECTED);
                 mBluetoothGatt = gatt;
                 boolean started = mBluetoothGatt.discoverServices();
                 Log.i(TAG, "Gatt connected; attempting service discovery, started=" + started
                     + ", status=" + status + ", newstate=" + newState);
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                mIsConnected = false;
+                updateConnectionState(BleServiceCallback.STATE_DISCONNECTED);
                 Log.i(TAG, "Disconnected from GATT server.");
             }
         }
@@ -298,6 +328,8 @@ public class BleService extends Service {
         // TODO: Maybe have multiple callbacks
         Log.v(TAG, "callback registered " + cb + " service = " + this);
         mBleServiceCallback = cb;
+        updateConnectionState(mIsScanning ? BleServiceCallback.STATE_SCANNING
+            : (mIsConnected ? BleServiceCallback.STATE_CONNECTED : BleServiceCallback.STATE_DISCONNECTED));
         enableNotifications(true); // no sense listening if nobody is registered
     }
 }

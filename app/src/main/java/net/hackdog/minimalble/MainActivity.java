@@ -17,6 +17,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 
 import java.util.HashMap;
 import java.util.UUID;
@@ -32,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private final static HashMap<String, Integer> mChannelMap;
     private Intent SERVICE_INTENT;
     private GraphView mChannels[] = new GraphView[CHANNEL_IDS.length];
+    private Button mScanButton;
     BleService mService;
 
     static {
@@ -51,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
             mChannels[i].setLabel("Channel " + i);
             mChannels[i].setValue("off");
         }
+
+        mScanButton = (Button) findViewById(R.id.scan_button);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         toolbar.setVisibility(View.GONE);
@@ -208,6 +212,49 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onCharacteristicRead(UUID uuid, byte[] data) {
 
+        }
+
+        @Override
+        public void onConnectionStateChanged(int state) {
+            final String msg;
+            final boolean enabled;
+
+            switch (state) {
+                case STATE_CONNECTING:
+                    msg = "Connecting...";
+                    enabled = false;
+                    break;
+                case STATE_CONNECTED:
+                    msg = "Connected";
+                    enabled = false;
+                    break;
+                case STATE_DISCONNECTED:
+                    msg = "Disconnected";
+                    enabled = true;
+                    break;
+                case STATE_SCANNING:
+                    msg = "Scanning...";
+                    enabled = false;
+                    break;
+                case STATE_SCAN_COMPLETE:
+                    msg = "Complete";
+                    enabled = false;
+                    break;
+                case STATE_SCAN_FAILED:
+                    msg = "Scan";
+                    enabled = true;
+                    break;
+                default:
+                    msg = "";
+                    enabled = true;
+            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mScanButton.setText(msg);
+                    mScanButton.setEnabled(enabled);
+                }
+            });
         }
     };
 }
