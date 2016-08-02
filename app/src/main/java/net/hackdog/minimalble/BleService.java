@@ -39,6 +39,7 @@ public class BleService extends Service {
     private LocalBinder mBinder = new LocalBinder();
     private boolean mIsConnected;
     private boolean mIsScanning;
+    private List<BluetoothGattCharacteristic> mCharactaristics = new ArrayList<>();
 
     public class LocalBinder extends Binder {
         BleService getService() {
@@ -135,6 +136,51 @@ public class BleService extends Service {
         }
     };
 
+    List<Runnable> workQueue = new ArrayList<>();
+
+    private void enableNotification(final BluetoothGatt gatt, BluetoothGattCharacteristic chr,
+                                    boolean enable) {
+        gatt.setCharacteristicNotification(chr, enable);
+        final BluetoothGattDescriptor desc = chr.getDescriptor(CLIENT_CHAR_CONFIG);
+        if (desc != null) {
+            // Total hack to work around android bug.
+            // See https://code.google.com/p/android/issues/detail?id=150933
+            //chr.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+
+            desc.setValue(enable ?
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+            if (!gatt.writeDescriptor(desc)) {
+                // Assume descriptor is busy and do it later.
+                if (DEBUG) Log.v(TAG, "delay write GATT descriptor for + "
+                        + desc.getCharacteristic().getUuid());
+                synchronized (workQueue) {
+                    workQueue.add(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (!gatt.writeDescriptor(desc)) {
+                                if (DEBUG) Log.v(TAG, "Couldn't write desc for chr "
+                                        + desc.getCharacteristic().getUuid());
+                            }
+                        }
+                    });
+                }
+            } else {
+                if (DEBUG) Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
+            }
+        } else {
+            if (DEBUG) Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
+        }
+    }
+
+    private void enableNotifications(boolean enabled) {
+        for (BluetoothGattCharacteristic chr : mCharactaristics) {
+            if (0 != (chr.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY)) {
+                enableNotification(mBluetoothGatt, chr, enabled);
+            }
+        }
+    }
+
     BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
 
         @Override
@@ -153,63 +199,22 @@ public class BleService extends Service {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-            List<BluetoothGattCharacteristic> chrs = new ArrayList<>();
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 if (DEBUG) Log.v(TAG, "onServicesDiscovered(status=" + status + ")");
                 List<BluetoothGattService> services = gatt.getServices();
                 for (BluetoothGattService service : services) {
                     if (DEBUG) Log.v(TAG, "\tService:" + service.getUuid());
                     List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
+                    mCharactaristics.clear();
                     for (BluetoothGattCharacteristic chr : chars) {
-                        chrs.add(chr);
+                        mCharactaristics.add(chr);
                         if (DEBUG) Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
                                 + " writetype:" + chr.getWriteType()
                                 + " properties:" + Integer.toHexString(chr.getProperties())
                                 + " userDesc:" + chr.getDescriptor(CLIENT_USER_DESC)); // TODO
                     }
                 }
-            }
-            for (BluetoothGattCharacteristic chr : chrs) {
-                if (0 != (chr.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY)) {
-                    enableNotification(gatt, chr, true);
-                }
-            }
-        }
-
-        List<Runnable> workQueue = new ArrayList<>();
-
-        private void enableNotification(final BluetoothGatt gatt, BluetoothGattCharacteristic chr,
-                                        boolean enable) {
-            gatt.setCharacteristicNotification(chr, enable);
-            final BluetoothGattDescriptor desc = chr.getDescriptor(CLIENT_CHAR_CONFIG);
-            if (desc != null) {
-                // Total hack to work around android bug.
-                // See https://code.google.com/p/android/issues/detail?id=150933
-                //chr.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-
-                desc.setValue(enable ?
-                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        : BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
-                if (!gatt.writeDescriptor(desc)) {
-                    // Assume descriptor is busy and do it later.
-                    if (DEBUG) Log.v(TAG, "delay write GATT descriptor for + "
-                            + desc.getCharacteristic().getUuid());
-                    synchronized (workQueue) {
-                        workQueue.add(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (!gatt.writeDescriptor(desc)) {
-                                    if (DEBUG) Log.v(TAG, "Couldn't write desc for chr "
-                                            + desc.getCharacteristic().getUuid());
-                                }
-                            }
-                        });
-                    }
-                } else {
-                    if (DEBUG) Log.v(TAG, "wrote GATT descriptor for + " + desc.getCharacteristic().getUuid());
-                }
-            } else {
-                if (DEBUG) Log.v(TAG, "No descriptor for UUID " + chr.getUuid());
+                enableNotifications(true);
             }
         }
 
@@ -280,11 +285,13 @@ public class BleService extends Service {
     public void unregisterCallback(BleServiceCallback cb) {
         Log.v(TAG, "callback unregistered " + cb + " service = " + this);
         mBleServiceCallback = null;
+        enableNotifications(false); // no sense listening if nobody is registered
     }
 
     public void registerCallback(BleServiceCallback cb) {
         // TODO: Maybe have multiple callbacks
         Log.v(TAG, "callback registered " + cb + " service = " + this);
         mBleServiceCallback = cb;
+        enableNotifications(true); // no sense listening if nobody is registered
     }
 }
