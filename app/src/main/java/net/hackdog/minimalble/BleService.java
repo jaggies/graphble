@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class BleService extends Service {
+    private static final boolean DEBUG = MainActivity.DEBUG;
     private final UUID CLIENT_CHAR_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private final UUID CLIENT_USER_DESC = UUID.fromString("00002901-0000-1000-8000-00805f9b34fb");
 
@@ -36,8 +37,8 @@ public class BleService extends Service {
     private BluetoothGatt mBluetoothGatt;
     private BleServiceCallback mBleServiceCallback;
     private LocalBinder mBinder = new LocalBinder();
-    private static final boolean DEBUG = MainActivity.DEBUG;
-
+    private boolean mIsConnected;
+    private boolean mIsScanning;
 
     public class LocalBinder extends Binder {
         BleService getService() {
@@ -56,7 +57,15 @@ public class BleService extends Service {
         return mBinder;
     }
 
-    public void startScan() {
+    public boolean isConnected() {
+        return mIsConnected;
+    }
+
+    public boolean isScanning() {
+        return mIsScanning;
+    }
+
+    public void startScan(String name) {
         if (mBluetoothAdapter == null) {
             BluetoothManager service = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             mBluetoothAdapter = service.getAdapter();
@@ -64,7 +73,6 @@ public class BleService extends Service {
         if (mBluetoothAdapter != null) {
             if (!mBluetoothAdapter.isEnabled()) {
                 if (!mBluetoothAdapter.isEnabled()) {
-                    // TODO: launch intent
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     startActivity(enableBtIntent); // can't get result
                     Log.w(TAG, "Bluetooth not enabled!!");
@@ -72,12 +80,14 @@ public class BleService extends Service {
             } else {
                 ScanSettings filters;
                 List<ScanFilter> filts = new ArrayList<>();
-                filts.add(new ScanFilter.Builder().setDeviceName("MatchBox").build());
+                filts.add(new ScanFilter.Builder()
+                        .setDeviceName(name).build());
                 ScanSettings setings = new ScanSettings.Builder()
                         .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
                         .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
                         .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                         .build();
+                mIsScanning = true;
                 mBluetoothAdapter.getBluetoothLeScanner().startScan(filts, setings, mScanCallback);
             }
         }
@@ -87,18 +97,7 @@ public class BleService extends Service {
         if (mBluetoothAdapter != null) {
             mBluetoothAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
         }
-    }
-
-    public boolean setCharacteristicNotification(
-            BluetoothDevice device, BluetoothGatt gatt,
-            UUID serviceUuid, UUID characteristicUuid, boolean enable) {
-        BluetoothGattCharacteristic characteristic = gatt.getService(
-                serviceUuid).getCharacteristic(characteristicUuid);
-        gatt.setCharacteristicNotification(characteristic, enable);
-        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHAR_CONFIG);
-        descriptor.setValue(enable ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                : new byte[] { 0x00, 0x00 });
-        return gatt.writeDescriptor(descriptor); //descriptor write operation successfully started?
+        mIsScanning = false;
     }
 
     ScanCallback mScanCallback = new ScanCallback() {
@@ -125,27 +124,28 @@ public class BleService extends Service {
         public void onBatchScanResults(List<ScanResult> results) {
             super.onBatchScanResults(results);
             if (DEBUG) Log.v(TAG, "onBatchScanResults(res=" + results + ")");
+            mIsScanning = false;
         }
 
         @Override
         public void onScanFailed(int errorCode) {
             super.onScanFailed(errorCode);
             if (DEBUG) Log.v(TAG, "onScanFailed: " + errorCode);
+            mIsScanning = false;
         }
     };
 
     BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
-        public boolean mConnected;
 
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             super.onConnectionStateChange(gatt, status, newState);
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                mConnected = true;
+                mIsConnected = true;
                 boolean started = mBluetoothGatt.discoverServices();
                 Log.i(TAG, "Gatt connected; attempting service discovery, started = " + started);
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                mConnected = false;
+                mIsConnected = false;
                 Log.i(TAG, "Disconnected from GATT server.");
             }
         }
@@ -214,7 +214,8 @@ public class BleService extends Service {
         }
 
         @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        public void onCharacteristicRead(
+                BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicRead(gatt, characteristic, status);
             if (mBleServiceCallback != null) {
                 mBleServiceCallback.onCharacteristicRead(
@@ -223,12 +224,14 @@ public class BleService extends Service {
         }
 
         @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        public void onCharacteristicWrite(
+                BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
         }
 
         @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        public void onCharacteristicChanged(
+                BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicChanged(gatt, characteristic);
             if (mBleServiceCallback != null) {
                 mBleServiceCallback.onCharacteristicChanged(
@@ -237,7 +240,8 @@ public class BleService extends Service {
         }
 
         @Override
-        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+        public void onDescriptorRead(
+                BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             super.onDescriptorRead(gatt, descriptor, status);
             if (DEBUG) Log.v(TAG, "onDescriptorRead() : " + descriptor.getCharacteristic().getUuid());
         }
@@ -274,11 +278,13 @@ public class BleService extends Service {
     };
 
     public void unregisterCallback(BleServiceCallback cb) {
+        Log.v(TAG, "callback unregistered " + cb + " service = " + this);
         mBleServiceCallback = null;
     }
 
     public void registerCallback(BleServiceCallback cb) {
         // TODO: Maybe have multiple callbacks
+        Log.v(TAG, "callback registered " + cb + " service = " + this);
         mBleServiceCallback = cb;
     }
 }

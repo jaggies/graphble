@@ -23,11 +23,14 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
     public static final boolean DEBUG = false;
+    private static final String MATCHBOX = "MatchBox";
     private static final int REQUEST_PERMISSIONS = 100;
     private static final int REQUEST_ENABLE_BT = 101;
     private static final String TAG = MainActivity.class.getSimpleName();
-    final int CHANNEL_IDS[] = {R.id.channel0, R.id.channel1, R.id.channel2, R.id.channel3 };
-    final static HashMap<String, Integer> mChannelMap;
+    private static final int CHANNEL_IDS[] =
+            { R.id.channel0, R.id.channel1, R.id.channel2, R.id.channel3 };
+    private final static HashMap<String, Integer> mChannelMap;
+    private Intent SERVICE_INTENT;
     private GraphView mChannels[] = new GraphView[CHANNEL_IDS.length];
     BleService mService;
 
@@ -62,7 +65,10 @@ public class MainActivity extends AppCompatActivity {
         });
         fab.setVisibility(View.GONE);
 
+        SERVICE_INTENT = new Intent(this, BleService.class);
+
         if (savedInstanceState == null) {
+            // Check permissions before starting
             checkPermissions();
         } else {
             startService();
@@ -71,11 +77,16 @@ public class MainActivity extends AppCompatActivity {
 
     void startService() {
         if (DEBUG) Log.v(TAG, "Starting service");
-        Intent intent = new Intent(this, BleService.class);
-        if (!bindService(intent, mConnection, Context.BIND_AUTO_CREATE)) {
+        // Keep the service running during device rotations
+        startService(SERVICE_INTENT);
+
+        // Bind to it
+        if (!bindService(SERVICE_INTENT, mConnection, Context.BIND_AUTO_CREATE)) {
             Log.w(TAG, "Failed to start service");
         }
     }
+
+    // TODO: stop service when we leave the activity
 
     ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -84,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
             BleService.LocalBinder binder = (BleService.LocalBinder) service;
             mService = binder.getService();
             mService.registerCallback(mBleServiceCallback);
-            mService.startScan();
+            maybeStartScanning();
         }
 
         @Override
@@ -94,22 +105,28 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private void maybeStartScanning() {
+        if (!mService.isConnected() && !mService.isScanning()) {
+            mService.startScan(MATCHBOX);
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
         if (mService != null) {
             mService.unregisterCallback(mBleServiceCallback);
-            mService.stopScan();
-//            unbindService(mConnection);
+            if (mService.isScanning()) {
+                mService.stopScan();
+            }
+            unbindService(mConnection);
         }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (mService != null) {
-            mService.startScan();
-        }
+        startService();
     }
 
     @Override
@@ -162,8 +179,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{
                     Manifest.permission.BLUETOOTH,
-                    Manifest.permission.ACCESS_COARSE_LOCATION},
-                    REQUEST_PERMISSIONS);
+                    Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_PERMISSIONS);
         }
     }
 
@@ -173,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
             String sUuid = uuid.toString();
             if (mChannelMap.containsKey(sUuid)) {
                 int chan = mChannelMap.get(sUuid);
-                mChannels[0].setData(data);
+                mChannels[chan].setData(data);
             } else {
                 // probably settings
                 Log.w(TAG, "not handling uuid " + uuid.toString());
