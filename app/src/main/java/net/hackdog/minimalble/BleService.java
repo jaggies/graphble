@@ -115,7 +115,7 @@ public class BleService extends Service {
                     List<ParcelUuid> serviceUuids = result.getScanRecord().getServiceUuids();
                     String name = result.getScanRecord().getDeviceName();
                     if (DEBUG) Log.v(TAG, "Found " + name + ", rssi=" + rssi);
-                    mBluetoothGatt = device.connectGatt(BleService.this, true, mGattCallback);
+                    device.connectGatt(BleService.this, true, mGattCallback);
                 }
                 break;
             }
@@ -174,9 +174,11 @@ public class BleService extends Service {
     }
 
     private void enableNotifications(boolean enabled) {
-        for (BluetoothGattCharacteristic chr : mCharactaristics) {
-            if (0 != (chr.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY)) {
-                enableNotification(mBluetoothGatt, chr, enabled);
+        synchronized (mCharactaristics) {
+            for (BluetoothGattCharacteristic chr : mCharactaristics) {
+                if (0 != (chr.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY)) {
+                    enableNotification(mBluetoothGatt, chr, enabled);
+                }
             }
         }
     }
@@ -188,8 +190,10 @@ public class BleService extends Service {
             super.onConnectionStateChange(gatt, status, newState);
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 mIsConnected = true;
+                mBluetoothGatt = gatt;
                 boolean started = mBluetoothGatt.discoverServices();
-                Log.i(TAG, "Gatt connected; attempting service discovery, started = " + started);
+                Log.i(TAG, "Gatt connected; attempting service discovery, started=" + started
+                    + ", status=" + status + ", newstate=" + newState);
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 mIsConnected = false;
                 Log.i(TAG, "Disconnected from GATT server.");
@@ -199,23 +203,25 @@ public class BleService extends Service {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             super.onServicesDiscovered(gatt, status);
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (DEBUG) Log.v(TAG, "onServicesDiscovered(status=" + status + ")");
-                List<BluetoothGattService> services = gatt.getServices();
-                for (BluetoothGattService service : services) {
-                    if (DEBUG) Log.v(TAG, "\tService:" + service.getUuid());
-                    List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
-                    mCharactaristics.clear();
-                    for (BluetoothGattCharacteristic chr : chars) {
-                        mCharactaristics.add(chr);
-                        if (DEBUG) Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
-                                + " writetype:" + chr.getWriteType()
-                                + " properties:" + Integer.toHexString(chr.getProperties())
-                                + " userDesc:" + chr.getDescriptor(CLIENT_USER_DESC)); // TODO
+            synchronized (mCharactaristics) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    if (DEBUG) Log.v(TAG, "onServicesDiscovered(status=" + status + ")");
+                    List<BluetoothGattService> services = gatt.getServices();
+                    for (BluetoothGattService service : services) {
+                        if (DEBUG) Log.v(TAG, "\tService:" + service.getUuid());
+                        List<BluetoothGattCharacteristic> chars = service.getCharacteristics();
+                        mCharactaristics.clear();
+                        for (BluetoothGattCharacteristic chr : chars) {
+                            mCharactaristics.add(chr);
+                            if (DEBUG) Log.v(TAG, "\t\tCharacteristic:" + chr.getUuid()
+                                    + " writetype:" + chr.getWriteType()
+                                    + " properties:" + Integer.toHexString(chr.getProperties())
+                                    + " userDesc:" + chr.getDescriptor(CLIENT_USER_DESC)); // TODO
+                        }
                     }
                 }
-                enableNotifications(true);
             }
+            enableNotifications(true);
         }
 
         @Override
