@@ -22,6 +22,24 @@ public abstract class Primitive {
                     "void main() {" +
                     "  gl_FragColor = vColor;" +
                     "}";
+
+    public static class ViewPort {
+        ViewPort(float l, float r, float b, float t, float n, float f) {
+            left = l;
+            right = r;
+            top = t;
+            bottom = b;
+            near = n;
+            far = f;
+        }
+        public float left;
+        public float right;
+        public float bottom;
+        public float top;
+        public float near;
+        public float far;
+    }
+
     private int mProgram;
     private int mPositionHandle;
     private int mColorHandle;
