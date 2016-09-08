@@ -137,8 +137,8 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
         if (!isChangingConfigurations()) {
             // Don't leave the service running
-//            stopService(SERVICE_INTENT);
-            finish();
+            //stopService(SERVICE_INTENT);
+            //finish();
         }
     }
 
@@ -196,13 +196,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    final int HISTORY = 1000;
+    byte[][] mData = {null, null, null, null};
+    int mIndex[] = {0,0,0,0};
+
     BleServiceCallback mBleServiceCallback = new BleServiceCallback() {
         @Override
         public void onCharacteristicChanged(UUID uuid, byte[] data) {
             String sUuid = uuid.toString();
             if (mChannelMap.containsKey(sUuid)) {
                 int chan = mChannelMap.get(sUuid);
-                mChannels[chan].setData(data);
+                if (mData[chan] == null) {
+                    mData[chan] = new byte[HISTORY];
+                }
+                for (int i = 2; i < data.length; i++) {
+                    mData[chan][(mIndex[chan]++)%HISTORY] = data[i];
+//                    if (mIndex[chan] >= HISTORY) {
+//                        mIndex[chan] = 0;
+//                    }
+                }
+                mChannels[chan].setData(mData[chan]);
             } else {
                 // probably settings
                 Log.w(TAG, "not handling uuid " + uuid.toString());
