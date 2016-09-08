@@ -1,6 +1,6 @@
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
-import net.hackdog.minimalble.IBleServiceCallback;
+import net.hackdog.graphble.IBleServiceCallback;
 
 interface IBleService {
     void startScan();

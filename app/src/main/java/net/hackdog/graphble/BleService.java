@@ -1,4 +1,4 @@
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -19,11 +19,9 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.ParcelUuid;
-import android.os.RemoteException;
 import android.util.Log;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 

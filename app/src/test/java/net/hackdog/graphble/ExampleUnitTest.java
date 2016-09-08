@@ -1,4 +1,4 @@
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
 import org.junit.Test;
 

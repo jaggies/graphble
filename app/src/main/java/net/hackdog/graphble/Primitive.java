@@ -1,4 +1,4 @@
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
 import android.opengl.GLES30;
 import android.renderscript.Matrix4f;
