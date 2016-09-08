@@ -1,4 +1,4 @@
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
 import android.Manifest;
 import android.content.ComponentName;
@@ -18,6 +18,8 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
+
+import net.hackdog.minimalble.R;
 
 import java.util.HashMap;
 import java.util.UUID;

@@ -1,27 +1,19 @@
 /**
  * Created by jmiller on 7/29/16.
  */
-package net.hackdog.minimalble;
+package net.hackdog.graphble;
 
 import android.content.Context;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 
-import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-import android.renderscript.Matrix4f;
 import android.util.AttributeSet;
-import android.view.SurfaceHolder;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.ArrayList;
-
-import javax.microedition.khronos.opengles.GL10;
+import net.hackdog.minimalble.R;
 
 public class GraphView extends LinearLayout {
     private GLSurfaceView mGraphView;
