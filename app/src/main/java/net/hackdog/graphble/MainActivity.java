@@ -19,6 +19,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 
+import net.hackdog.minimalble.R;
+
 import java.util.HashMap;
 import java.util.UUID;
 
